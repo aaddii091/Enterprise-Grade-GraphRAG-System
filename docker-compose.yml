@@ -1,0 +1,67 @@
+# Local GraphRAG infrastructure.
+#
+# Memory caps are declared TWICE on purpose:
+#   - `mem_limit`                     -> honoured by `docker compose up` (non-swarm)
+#   - `deploy.resources.limits.memory`-> honoured by swarm / newer compose specs
+# On a 16 GB M1 Pro these caps are the difference between a working pipeline and
+# a machine that swaps. Verify they applied with `docker stats --no-stream`.
+
+services:
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: graphrag_qdrant
+    restart: unless-stopped
+    ports:
+      - "6333:6333"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    mem_limit: 1536m
+    deploy:
+      resources:
+        limits:
+          memory: 1536m
+    healthcheck:
+      # Qdrant's image has no curl/wget; the TCP listener is the signal we need.
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/localhost/6333' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  neo4j:
+    image: neo4j:latest
+    container_name: graphrag_neo4j
+    restart: unless-stopped
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    volumes:
+      - neo4j_data:/data
+      - neo4j_logs:/logs
+    environment:
+      - NEO4J_AUTH=neo4j/password123
+      - NEO4J_PLUGINS=["apoc"]
+      # Heap is bounded explicitly...
+      - NEO4J_server_memory_heap_initial__size=512m
+      - NEO4J_server_memory_heap_max__size=1g
+      # ...and so is the page cache. Without this, Neo4j sizes the cache from the
+      # HOST's 16 GB rather than its own 2 g cap and gets OOM-killed under load.
+      - NEO4J_server_memory_pagecache_size=512m
+      - NEO4J_dbms_security_procedures_unrestricted=apoc.*
+      - NEO4J_dbms_security_procedures_allowlist=apoc.*
+    mem_limit: 2g
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:7474 >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 45s
+
+volumes:
+  qdrant_data:
+  neo4j_data:
+  neo4j_logs:

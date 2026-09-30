@@ -1,0 +1,21 @@
+# Python 3.12 (via `uv venv --python 3.12`). The system default here is 3.14,
+# where the torch / llama-index wheel situation is still unreliable.
+
+llama-index-core
+llama-index-llms-ollama
+llama-index-embeddings-huggingface
+llama-index-vector-stores-qdrant
+
+# NOTE: llama-index-graph-stores-neo4j is deliberately absent. Graph writes go
+# through the raw neo4j driver so that entity canonicalisation, the uniqueness
+# constraint and the chunk_id backlink stay under our control.
+
+pdfplumber
+pypdfium2          # pdfplumber's render backend - required to crop/rasterise regions
+Pillow             # PNG encoding of cropped regions
+
+neo4j
+qdrant-client
+requests
+python-dotenv
+tqdm
