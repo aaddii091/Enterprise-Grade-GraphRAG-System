@@ -13,3 +13,6 @@ data/processed/*
 # HF model cache, if redirected into the repo
 .cache/
 .DS_Store
+
+# X.509 client certs / private keys (MongoDB Atlas etc.)
+*.pem
